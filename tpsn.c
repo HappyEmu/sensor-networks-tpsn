@@ -34,20 +34,31 @@ static void on_message_received(struct broadcast_conn *c)
 
 	switch (msgReceived.type) {
 		case DISCOVERY: {
-			static DiscoveryMessage disc_message;
+			static DiscoveryMessage disc_msg;
+			packetbuf_copyto(&disc_msg);
+			handle_discovery(disc_msg);
 
-			packetbuf_copyto(&disc_message);
-
-			handle_discovery(disc_message);
 			break;
 		}
 		case SYNC_PULSE: {
+			static SyncPulseMessage pulse_msg;
+			packetbuf_copyto(&pulse_msg);
+			handle_discovery(pulse_msg);
+
 			break;
 		}
 		case SYNC_REQ: {
+			static SyncRequestMessage req_msg;
+			packetbuf_copyto(&req_msg);
+			handle_discovery(req_msg);
+
 			break;
 		}
 		case SYNC_ACK: {
+			static SyncAckMessage ack_msg;
+			packetbuf_copyto(&ack_msg);
+			handle_discovery(ack_msg);
+
 			break;
 		}
 		default: break;
@@ -75,6 +86,18 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 
 		broadcast_send(&bc);
 	}
+}
+
+static void handle_sync_pluse(SyncPulseMessage pulse_msg) {
+	printf("Received sync pulse from %d", pulse_msg.sender_id);
+}
+
+static void handle_sync_req(SyncRequestMessage req_msg) {
+	printf("Received sync request from %d", req_msg.sender_id);
+}
+
+static void handle_sync_ack(SyncAckMessage ack_msg) {
+	printf("Received sync ack from %d", ack_msg.sender_id);
 }
 
 // Start processes
@@ -109,10 +132,31 @@ PROCESS_THREAD(tpsn_process, ev, data)
 		printf("Sending initial discovery packet to all\n");
 
 		static struct etimer wait_timer;
-		etimer_set(&wait_timer, 2*CLOCK_SECOND);
+		etimer_set(&wait_timer, CLOCK_SECOND / 2);
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
 
 		printf("Hello\n");
+
+		SyncPulseMessage pulse_msg;
+		pulse_msg.sender_id = node_id;
+		pulse_msg.type = SYNC_PULSE;
+
+		SyncRequestMessage req_msg;
+		req_msg.sender_id = node_id;
+		req_msg.type = SYNC_REQ;
+
+		SyncAckMessage ack_msg;
+		ack_msg.sender_id = node_id;
+		ack_msg.type = SYNC_ACK;
+
+		packetbuf_copyfrom(&pulse_msg, sizeof(pulse_msg));
+		broadcast_send(&bc);
+
+		packetbuf_copyfrom(&req_msg, sizeof(req_msg));
+		broadcast_send(&bc);
+
+		packetbuf_copyfrom(&ack_msg, sizeof(ack_msg));
+		broadcast_send(&bc);
 	}
 
 	SENSORS_DEACTIVATE(button_sensor);

@@ -3,6 +3,9 @@
 
 rimeaddr_t getDestAddr(unsigned short);
 static void handle_discovery(DiscoveryMessage);
+static void handle_sync_pulse(SyncPulseMessage);
+static void handle_sync_ack(SyncAckMessage);
+static void handle_sync_req(SyncRequestMessage);
 void send_discovery_message();
 void initiate_discovery();
 
