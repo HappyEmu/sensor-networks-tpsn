@@ -81,6 +81,12 @@ PROCESS_THREAD(tpsn_process, ev, data)
 		broadcast_send(&bc);
 
 		printf("Sending initial discovery packet to all\n");
+
+		static struct etimer wait_timer;
+		etimer_set(&wait_timer, 2*CLOCK_SECOND);
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
+
+		printf("Hello\n");
 	}
 
 	SENSORS_DEACTIVATE(button_sensor);
