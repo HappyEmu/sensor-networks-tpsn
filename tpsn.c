@@ -40,6 +40,7 @@ static void on_discovery_received(struct broadcast_conn *c)
 		last_broadcast_id = dmReceived.broadcast_id;
 		parent_node = dmReceived.sender_id;
 		level = dmReceived.level + 1;
+		printf("Assigned: parent node: %d, level: %d\n", parent_node, level);
 
 		dmSend.broadcast_id = last_broadcast_id;
 		dmSend.level = level;
@@ -77,7 +78,7 @@ PROCESS_THREAD(tpsn_process, ev, data)
 
 		broadcast_send(&bc);
 
-		printf("Sending initial discovery packet to all");
+		printf("Sending initial discovery packet to all\n");
 	}
 
 	SENSORS_DEACTIVATE(button_sensor);
