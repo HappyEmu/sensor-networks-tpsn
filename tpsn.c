@@ -14,13 +14,10 @@ static struct broadcast_conn bc;
 
 static clock_time_t rtt;
 
-typedef struct {
-	clock_time_t time;
-	unsigned short originator;
-} TimeMessage;
+static uint8_t parent_node, level;
+static uint16_t last_broadcast_id = 1 << 16;
 
-static TimeMessage tmReceived;
-static TimeMessage tmSent;
+static DiscoveryMessage dmReceived, dmSend;
 
 static void timerCallback_turnOffLeds()
 {
@@ -33,25 +30,25 @@ static void on_discovery_received(struct broadcast_conn *c)
 
 	ctimer_set(&leds_off_timer_send, CLOCK_SECOND / 8, timerCallback_turnOffLeds, NULL);
 
-	packetbuf_copyto(&tmReceived);
-	printf("unicast message received from %d\n", tmReceived.originator);
+	packetbuf_copyto(&dmReceived);
+	printf("Broadcast message %d received from %d\n", dmReceived.broadcast_id, dmReceived.sender_id);
 
-	if (tmReceived.originator == node_id) {
-		rtt = clock_time() - tmReceived.time;
+	if (last_broadcast_id != dmReceived.broadcast_id) {
+		printf("Got new broadcast: %d\n", dmReceived.broadcast_id);
 
-		printf("RTT was %d milliseconds\n", (int)(((uint16_t) rtt / (float)CLOCK_SECOND)*1000));
+		// Update state variables
+		last_broadcast_id = dmReceived.broadcast_id;
+		parent_node = dmReceived.sender_id;
+		level = dmReceived.level + 1;
 
-	} else {
-		printf("time received = %d clock ticks", (uint16_t)tmReceived.time);
-		printf(" = %d secs ", (uint16_t)tmReceived.time / CLOCK_SECOND);
-		printf("%d millis ", (1000L * ((uint16_t)tmReceived.time  % CLOCK_SECOND)) / CLOCK_SECOND);
-		printf("originator = %d\n", tmReceived.originator);
+		dmSend.broadcast_id = last_broadcast_id + 1;
+		dmSend.level = level;
+		dmSend.sender_id = node_id;
 
-		packetbuf_copyfrom(&tmReceived, sizeof(tmReceived));
+		printf("Rebroadcasting to other nodes\n");
+		packetbuf_copyfrom(&dmSend, sizeof(dmSend));
 
 		broadcast_send(&bc);
-
-		printf("sending ACK packet to all");
 	}
 }
 
@@ -72,14 +69,15 @@ PROCESS_THREAD(tpsn_process, ev, data)
 	while(1){
 		PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
 
-		tmSent.time = clock_time();
-		tmSent.originator = node_id;
+		dmSend.broadcast_id = last_broadcast_id + 1;
+		dmSend.level = 0;
+		dmSend.sender_id = node_id;
 
-		packetbuf_copyfrom(&tmSent, sizeof(tmSent));
+		packetbuf_copyfrom(&dmSend, sizeof(dmSend));
 
 		broadcast_send(&bc);
 
-		printf("sending packet to all");
+		printf("Sending initial discovery packet to all");
 	}
 
 	SENSORS_DEACTIVATE(button_sensor);
