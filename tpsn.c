@@ -8,8 +8,8 @@
 #include "tpsn.h"
 
 static struct ctimer leds_off_timer_send;
-static void on_discovery_received(struct broadcast_conn *c);
-static const struct broadcast_callbacks discovery_callbacks = {on_discovery_received};
+static void on_message_received(struct broadcast_conn *c);
+static const struct broadcast_callbacks discovery_callbacks = {on_message_received};
 static struct broadcast_conn bc;
 
 static clock_time_t rtt;
@@ -17,37 +17,61 @@ static clock_time_t rtt;
 static uint8_t parent_node, level;
 static uint16_t last_broadcast_id = 1 << 16;
 
-static DiscoveryMessage dmReceived, dmSend;
+static AbstractMessage msgReceived;
 
 static void timerCallback_turnOffLeds()
 {
 	leds_off(LEDS_BLUE);
 }
 
-static void on_discovery_received(struct broadcast_conn *c)
+static void on_message_received(struct broadcast_conn *c)
 {
 	leds_on(LEDS_BLUE);
 
 	ctimer_set(&leds_off_timer_send, CLOCK_SECOND / 8, timerCallback_turnOffLeds, NULL);
 
-	packetbuf_copyto(&dmReceived);
-	printf("Broadcast message %d received from %d\n", dmReceived.broadcast_id, dmReceived.sender_id);
+	packetbuf_copyto(&msgReceived);
 
-	if (last_broadcast_id != dmReceived.broadcast_id) {
-		printf("Got new broadcast: %d\n", dmReceived.broadcast_id);
+	switch (msgReceived.type) {
+		case DISCOVERY: {
+			static DiscoveryMessage disc_message;
+
+			packetbuf_copyto(&disc_message);
+
+			handle_discovery(disc_message);
+			break;
+		}
+		case SYNC_PULSE: {
+			break;
+		}
+		case SYNC_REQ: {
+			break;
+		}
+		case SYNC_ACK: {
+			break;
+		}
+		default: break;
+	}
+}
+
+static void handle_discovery(DiscoveryMessage disc_message) {
+	printf("Broadcast message %d received from %d\n", disc_message.broadcast_id, disc_message.sender_id);
+
+	if (last_broadcast_id != disc_message.broadcast_id) {
+		printf("Got new broadcast: %d\n", disc_message.broadcast_id);
 
 		// Update state variables
-		last_broadcast_id = dmReceived.broadcast_id;
-		parent_node = dmReceived.sender_id;
-		level = dmReceived.level + 1;
+		last_broadcast_id = disc_message.broadcast_id;
+		parent_node = disc_message.sender_id;
+		level = disc_message.level + 1;
 		printf("Assigned: parent node: %d, level: %d\n", parent_node, level);
 
-		dmSend.broadcast_id = last_broadcast_id;
-		dmSend.level = level;
-		dmSend.sender_id = node_id;
+		disc_message.broadcast_id = last_broadcast_id;
+		disc_message.level = level;
+		disc_message.sender_id = node_id;
 
 		printf("Rebroadcasting to other nodes\n");
-		packetbuf_copyfrom(&dmSend, sizeof(dmSend));
+		packetbuf_copyfrom(&disc_message, sizeof(disc_message));
 
 		broadcast_send(&bc);
 	}
@@ -67,16 +91,18 @@ PROCESS_THREAD(tpsn_process, ev, data)
 
 	SENSORS_ACTIVATE(button_sensor);
 
+	static DiscoveryMessage msgSend;
+
 	while(1){
 		PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
 
-		dmSend.broadcast_id = last_broadcast_id + 1;
-		dmSend.level = 0;
-		dmSend.sender_id = node_id;
+		msgSend.broadcast_id = last_broadcast_id + 1;
+		msgSend.level = 0;
+		msgSend.sender_id = node_id;
 
-		last_broadcast_id = dmSend.broadcast_id;
+		last_broadcast_id = msgSend.broadcast_id;
 
-		packetbuf_copyfrom(&dmSend, sizeof(dmSend));
+		packetbuf_copyfrom(&msgSend, sizeof(msgSend));
 
 		broadcast_send(&bc);
 

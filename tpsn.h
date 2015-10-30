@@ -2,6 +2,7 @@
 #define TPSN_H_
 
 rimeaddr_t getDestAddr(unsigned short);
+static void handle_discovery(DiscoveryMessage);
 void send_discovery_message();
 void initiate_discovery();
 
@@ -10,33 +11,40 @@ typedef enum {
 } MessageType;
 
 typedef struct {
-	MessageType type = DISCOVERY;
+	MessageType type;
 	uint8_t level;
 	uint16_t broadcast_id;
 	uint8_t sender_id;
 } DiscoveryMessage;
 
 typedef struct {
-	MessageType type = SYNC_PULSE;
+	MessageType type;
 	uint8_t sender_id;
 } SyncPulseMessage;
 
 typedef struct {
-	MessageType type = SYNC_REQ;
-	uint8_t sender_id;
+	MessageType type;
+	uint8_t sender_id, destination_id;
 	clock_time_t t1;
 } SyncRequestMessage;
 
 typedef struct {
-	MessageType type = SYNC_ACK;
+	MessageType type;
 	uint8_t sender_id;
 	clock_time_t t1, t2, t3;
-} SyncRequestMessage;
+} SyncAckMessage;
+
+typedef struct {
+	MessageType type;
+	uint8_t data[200];
+} AbstractMessage;
 
 typedef struct {
 	clock_time_t time;
 	unsigned short originator;
 } TimeMessage;
+
+
 
 
 #endif
