@@ -91,7 +91,7 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 	}
 }
 
-static void handle_sync_pluse(SyncPulseMessage pulse_msg) {
+static void handle_sync_pulse(SyncPulseMessage pulse_msg) {
 	printf("Received sync pulse from %d\n", pulse_msg.sender_id);
 }
 
