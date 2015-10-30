@@ -32,6 +32,8 @@ static void on_message_received(struct broadcast_conn *c)
 
 	packetbuf_copyto(&msgReceived);
 
+	printf("Got new message with type %d\n", msgReceived.type);
+
 	switch (msgReceived.type) {
 		case DISCOVERY: {
 			static DiscoveryMessage disc_msg;
@@ -43,21 +45,21 @@ static void on_message_received(struct broadcast_conn *c)
 		case SYNC_PULSE: {
 			static SyncPulseMessage pulse_msg;
 			packetbuf_copyto(&pulse_msg);
-			handle_discovery(pulse_msg);
+			handle_sync_pulse(pulse_msg);
 
 			break;
 		}
 		case SYNC_REQ: {
 			static SyncRequestMessage req_msg;
 			packetbuf_copyto(&req_msg);
-			handle_discovery(req_msg);
+			handle_sync_req(req_msg);
 
 			break;
 		}
 		case SYNC_ACK: {
 			static SyncAckMessage ack_msg;
 			packetbuf_copyto(&ack_msg);
-			handle_discovery(ack_msg);
+			handle_sync_ack(ack_msg);
 
 			break;
 		}
@@ -77,6 +79,7 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 		level = disc_message.level + 1;
 		printf("Assigned: parent node: %d, level: %d\n", parent_node, level);
 
+		disc_message.type = DISCOVERY;
 		disc_message.broadcast_id = last_broadcast_id;
 		disc_message.level = level;
 		disc_message.sender_id = node_id;
@@ -89,15 +92,15 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 }
 
 static void handle_sync_pluse(SyncPulseMessage pulse_msg) {
-	printf("Received sync pulse from %d", pulse_msg.sender_id);
+	printf("Received sync pulse from %d\n", pulse_msg.sender_id);
 }
 
 static void handle_sync_req(SyncRequestMessage req_msg) {
-	printf("Received sync request from %d", req_msg.sender_id);
+	printf("Received sync request from %d\n", req_msg.sender_id);
 }
 
 static void handle_sync_ack(SyncAckMessage ack_msg) {
-	printf("Received sync ack from %d", ack_msg.sender_id);
+	printf("Received sync ack from %d\n", ack_msg.sender_id);
 }
 
 // Start processes
