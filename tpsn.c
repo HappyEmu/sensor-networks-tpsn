@@ -8,9 +8,9 @@
 #include "tpsn.h"
 
 static struct ctimer leds_off_timer_send;
-static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from);
-static const struct unicast_callbacks unicast_callbacks = {recv_uc};
-static struct unicast_conn uc;
+static void on_discovery_received(struct broadcast_conn *c);
+static const struct broadcast_callbacks discovery_callbacks = {on_discovery_received};
+static struct broadcast_conn bc;
 
 static clock_time_t rtt;
 
@@ -27,15 +27,14 @@ static void timerCallback_turnOffLeds()
 	leds_off(LEDS_BLUE);
 }
 
-static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
+static void on_discovery_received(struct broadcast_conn *c)
 {
-	printf("unicast message received from %d.%d\n", from->u8[0], from->u8[1]);
-
 	leds_on(LEDS_BLUE);
 
 	ctimer_set(&leds_off_timer_send, CLOCK_SECOND / 8, timerCallback_turnOffLeds, NULL);
 
 	packetbuf_copyto(&tmReceived);
+	printf("unicast message received from %d\n", tmReceived.originator);
 
 	if (tmReceived.originator == node_id) {
 		rtt = clock_time() - tmReceived.time;
@@ -50,25 +49,23 @@ static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
 
 		packetbuf_copyfrom(&tmReceived, sizeof(tmReceived));
 
-		rimeaddr_t addr = getDestAddr(node_id);
+		broadcast_send(&bc);
 
-		unicast_send(&uc, &addr);
-
-		printf("sending ACK packet to %u\n", addr.u8[0]);
+		printf("sending ACK packet to all");
 	}
 }
 
 // Start processes
-PROCESS(example_unicast_process, "RTT using Rime Unicast Primitive");
-AUTOSTART_PROCESSES(&example_unicast_process);
+PROCESS(tpsn_process, "TPSN Prototype");
+AUTOSTART_PROCESSES(&tpsn_process);
 
-PROCESS_THREAD(example_unicast_process, ev, data)
+PROCESS_THREAD(tpsn_process, ev, data)
 {
-	PROCESS_EXITHANDLER(unicast_close(&uc);)
+	PROCESS_EXITHANDLER(broadcast_close(&bc);)
 
 	PROCESS_BEGIN();
 
-	unicast_open(&uc, 146, &unicast_callbacks);
+	broadcast_open(&bc, 146, &discovery_callbacks);
 
 	SENSORS_ACTIVATE(button_sensor);
 
@@ -80,11 +77,9 @@ PROCESS_THREAD(example_unicast_process, ev, data)
 
 		packetbuf_copyfrom(&tmSent, sizeof(tmSent));
 
-		rimeaddr_t addr = getDestAddr(node_id);
+		broadcast_send(&bc);
 
-		unicast_send(&uc, &addr);
-
-		printf("sending packet to %u\n", addr.u8[0]);
+		printf("sending packet to all");
 	}
 
 	SENSORS_DEACTIVATE(button_sensor);
