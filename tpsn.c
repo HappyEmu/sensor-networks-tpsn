@@ -74,6 +74,8 @@ PROCESS_THREAD(tpsn_process, ev, data)
 		dmSend.level = 0;
 		dmSend.sender_id = node_id;
 
+		last_broadcast_id = dmSend.broadcast_id;
+
 		packetbuf_copyfrom(&dmSend, sizeof(dmSend));
 
 		broadcast_send(&bc);
