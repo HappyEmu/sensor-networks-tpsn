@@ -41,7 +41,7 @@ static void on_discovery_received(struct broadcast_conn *c)
 		parent_node = dmReceived.sender_id;
 		level = dmReceived.level + 1;
 
-		dmSend.broadcast_id = last_broadcast_id + 1;
+		dmSend.broadcast_id = last_broadcast_id;
 		dmSend.level = level;
 		dmSend.sender_id = node_id;
 
