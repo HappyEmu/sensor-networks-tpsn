@@ -1,12 +1,4 @@
-#include "contiki.h"
-#include "net/rime.h"
-#include "dev/button-sensor.h"
-#include "dev/leds.h"
-#include "node-id.h"
-#include "sys/rtimer.h"
-#include <stdio.h>
 #include "tpsn.h"
-
 
 static struct ctimer leds_off_timer_send;
 static void on_message_received(struct broadcast_conn *c);
@@ -16,7 +8,7 @@ static struct broadcast_conn bc;
 static clock_time_t rtt;
 
 static uint8_t parent_node, level;
-static uint16_t last_broadcast_id = 1 << 16;
+static uint16_t last_broadcast_id = (uint16_t) (1 << 16);
 
 static AbstractMessage msgReceived;
 
@@ -51,8 +43,8 @@ static void on_message_received(struct broadcast_conn *c)
 			}
 			static struct ctimer ct;
 			clock_time_t backoff = (rand() % CLOCK_SECOND) + 1;
-			ctimer_set(&ct, backoff, &handle_sync_pulse, &pulse_msg);
-			//handle_sync_pulse(pulse_msg);
+			ctimer_set(&ct, backoff, handle_sync_pulse, &pulse_msg);
+
 
 			break;
 		}
@@ -110,8 +102,6 @@ static void handle_sync_pulse(SyncPulseMessage pulse_msg) {
 	printf("sending sync req to %d\n", req_msg.destination_id);
 
 }
-
-
 
 static void handle_sync_req(SyncRequestMessage req_msg) {
 	if(req_msg.destination_id != node_id) return;
@@ -192,19 +182,4 @@ PROCESS_THREAD(tpsn_process, ev, data)
 	SENSORS_DEACTIVATE(button_sensor);
 
 	PROCESS_END();
-}
-
-rimeaddr_t getDestAddr(unsigned short node_id) {
-	rimeaddr_t addr;
-	/* in case I am node 50, choose 51 as destination.*/
-	if(node_id % 2 == 0) {
-		addr.u8[0] = node_id + 1;
-	}
-	/* In case I am node 51, choose 50, etc */
-	else {
-		addr.u8[0] = node_id - 1;
-	}
-	addr.u8[1] = 0;
-
-	return addr;
 }

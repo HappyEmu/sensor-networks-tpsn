@@ -1,13 +1,16 @@
 #ifndef TPSN_H_
 #define TPSN_H_
 
-rimeaddr_t getDestAddr(unsigned short);
-static void handle_discovery(DiscoveryMessage);
-static void handle_sync_pulse(SyncPulseMessage);
-static void handle_sync_ack(SyncAckMessage);
-static void handle_sync_req(SyncRequestMessage);
-void send_discovery_message();
-void initiate_discovery();
+#include "contiki.h"
+#include "net/rime.h"
+#include "dev/button-sensor.h"
+#include "dev/leds.h"
+#include "node-id.h"
+#include "sys/rtimer.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "tpsn.h"
 
 typedef enum {
 	DISCOVERY = 0, SYNC_PULSE = 1, SYNC_REQ = 2, SYNC_ACK = 3
@@ -49,7 +52,9 @@ typedef struct {
 	unsigned short originator;
 } TimeMessage;
 
-
-
+static void handle_discovery(DiscoveryMessage);
+static void handle_sync_pulse(SyncPulseMessage);
+static void handle_sync_ack(SyncAckMessage);
+static void handle_sync_req(SyncRequestMessage);
 
 #endif
