@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "tpsn.h"
 
+
 static struct ctimer leds_off_timer_send;
 static void on_message_received(struct broadcast_conn *c);
 static const struct broadcast_callbacks discovery_callbacks = {on_message_received};
@@ -110,27 +111,35 @@ static void handle_sync_pulse(SyncPulseMessage pulse_msg) {
 
 }
 
+
+
 static void handle_sync_req(SyncRequestMessage req_msg) {
 	if(req_msg.destination_id != node_id) return;
 
 	printf("Received sync request from %d\n", req_msg.sender_id);
-
 	clock_time_t t2 = clock_time();
+
 	SyncAckMessage sync_ack = {.type = SYNC_ACK, .sender_id = node_id, .destination_id = parent_node, .t1 = req_msg.t1, .t2 = t2};
 	clock_time_t t3 = clock_time();
 	sync_ack.t3 = t3;
 
+	printf("Times are: t1: %u t2: %u t3: %u ", (unsigned int)req_msg.t1, (unsigned int)t2, (unsigned int)t3);
 	packetbuf_copyfrom(&sync_ack, sizeof(sync_ack));
 	broadcast_send(&bc);
 
-	printf("Times are: t1: %u t2: %u t3: %u", req_msg.t1, t2, t3);
+
 	printf("sending sync ack to %d\n", sync_ack.destination_id);
 }
 
 static void handle_sync_ack(SyncAckMessage ack_msg) {
 	printf("Received sync ack from %d\n", ack_msg.sender_id);
 	clock_time_t t4 = clock_time();
-	printf("Times are: t1: %u t2: %u t3: %u t4: %u", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
+	printf("Times are: t1: %u t2: %u t3: %u t4: %u \n", (unsigned int)ack_msg.t1, (unsigned int)ack_msg.t2, (unsigned int)ack_msg.t3, (unsigned int)t4);
+
+	clock_time_t Delta = ((ack_msg.t2 - ack_msg.t1)-(t4 - ack_msg.t3))/2;
+	clock_time_t d = ((ack_msg.t2 - ack_msg.t1)+(t4 - ack_msg.t3))/2;
+	//clock_adjust(Delta);
+	printf("local time: %u, t3: %u",(unsigned int)clock_time(),(unsigned int)ack_msg.t3);
 }
 
 // Start processes
