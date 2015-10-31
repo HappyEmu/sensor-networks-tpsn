@@ -45,7 +45,13 @@ static void on_message_received(struct broadcast_conn *c)
 		case SYNC_PULSE: {
 			static SyncPulseMessage pulse_msg;
 			packetbuf_copyto(&pulse_msg);
-			handle_sync_pulse(pulse_msg);
+			if(pulse_msg.sender_id != parent_node){
+				break;
+			}
+			static struct ctimer ct;
+			clock_time_t backoff = (rand() % CLOCK_SECOND) + 1;
+			ctimer_set(&ct, backoff, &handle_sync_pulse, &pulse_msg);
+			//handle_sync_pulse(pulse_msg);
 
 			break;
 		}
@@ -93,14 +99,38 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 
 static void handle_sync_pulse(SyncPulseMessage pulse_msg) {
 	printf("Received sync pulse from %d\n", pulse_msg.sender_id);
+
+	clock_time_t t1 = clock_time();
+	printf("T1 is: %u ticks\n", t1);
+
+	SyncRequestMessage req_msg = {.type = SYNC_REQ, .sender_id = node_id, .destination_id = parent_node, .t1 = t1};
+	packetbuf_copyfrom(&req_msg, sizeof(req_msg));
+	broadcast_send(&bc);
+	printf("sending sync req to %d\n", req_msg.destination_id);
+
 }
 
 static void handle_sync_req(SyncRequestMessage req_msg) {
+	if(req_msg.destination_id != node_id) return;
+
 	printf("Received sync request from %d\n", req_msg.sender_id);
+
+	clock_time_t t2 = clock_time();
+	SyncAckMessage sync_ack = {.type = SYNC_ACK, .sender_id = node_id, .destination_id = parent_node, .t1 = req_msg.t1, .t2 = t2};
+	clock_time_t t3 = clock_time();
+	sync_ack.t3 = t3;
+
+	packetbuf_copyfrom(&sync_ack, sizeof(sync_ack));
+	broadcast_send(&bc);
+
+	printf("Times are: t1: %u t2: %u t3: %u", req_msg.t1, t2, t3);
+	printf("sending sync ack to %d\n", sync_ack.destination_id);
 }
 
 static void handle_sync_ack(SyncAckMessage ack_msg) {
 	printf("Received sync ack from %d\n", ack_msg.sender_id);
+	clock_time_t t4 = clock_time();
+	printf("Times are: t1: %u t2: %u t3: %u t4: %u", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
 }
 
 // Start processes
@@ -116,6 +146,7 @@ PROCESS_THREAD(tpsn_process, ev, data)
 	broadcast_open(&bc, 146, &discovery_callbacks);
 
 	SENSORS_ACTIVATE(button_sensor);
+	clock_init();
 
 	static DiscoveryMessage msgSend;
 
@@ -138,27 +169,14 @@ PROCESS_THREAD(tpsn_process, ev, data)
 		etimer_set(&wait_timer, CLOCK_SECOND / 2);
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
 
-		printf("Hello\n");
+		printf("Sending Sync Pulse message\n");
 
 		SyncPulseMessage pulse_msg;
 		pulse_msg.sender_id = node_id;
 		pulse_msg.type = SYNC_PULSE;
 
-		SyncRequestMessage req_msg;
-		req_msg.sender_id = node_id;
-		req_msg.type = SYNC_REQ;
-
-		SyncAckMessage ack_msg;
-		ack_msg.sender_id = node_id;
-		ack_msg.type = SYNC_ACK;
 
 		packetbuf_copyfrom(&pulse_msg, sizeof(pulse_msg));
-		broadcast_send(&bc);
-
-		packetbuf_copyfrom(&req_msg, sizeof(req_msg));
-		broadcast_send(&bc);
-
-		packetbuf_copyfrom(&ack_msg, sizeof(ack_msg));
 		broadcast_send(&bc);
 	}
 

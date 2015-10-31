@@ -33,7 +33,7 @@ typedef struct {
 
 typedef struct {
 	MessageType type;
-	uint8_t sender_id;
+	uint8_t sender_id, destination_id;
 	clock_time_t t1, t2, t3;
 } SyncAckMessage;
 
