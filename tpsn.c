@@ -96,7 +96,7 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 }
 
 static void handle_sync_pulse(SyncPulseMessage pulse_msg) {
-	printf("Received sync pulse from %d\n", pulse_msg.sender_id);
+	printf("Received sync pulse from parent\n");
 
 	clock_time_t t1 = sys_time;
 	printf("T1 is: %u ticks\n", t1);
