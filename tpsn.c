@@ -116,7 +116,7 @@ static void handle_sync_req(SyncRequestMessage req_msg) {
 	clock_time_t t3 = sys_time;
 	sync_ack.t3 = t3;
 
-	printf("Times are: t1: %u t2: %u t3: %u ", (unsigned int)req_msg.t1, (unsigned int)t2, (unsigned int)t3);
+	printf("Times are: t1: %u t2: %u t3: %u \n", (unsigned int)req_msg.t1, (unsigned int)t2, (unsigned int)t3);
 	packetbuf_copyfrom(&sync_ack, sizeof(sync_ack));
 	broadcast_send(&bc);
 
@@ -133,13 +133,12 @@ static void handle_sync_ack(SyncAckMessage ack_msg) {
 	printf("Delta: %d \n",Delta);
 	//clock_time_t d = ((ack_msg.t2 - ack_msg.t1)+(t4 - ack_msg.t3))/2;
 
-	printf("Time before: %u", (unsigned int) sys_time);
+	printf("Time before: %u \n", (unsigned int) sys_time);
 
 	sys_time += Delta;
 
-	printf("Time after: %u", (unsigned int) sys_time);
-	//clock_adjust(Delta);
-	printf("local time: %u, t3: %u \n",(unsigned int)sys_time,(unsigned int)ack_msg.t3);
+	printf("Time after: %u \n", (unsigned int) sys_time);
+
 }
 
 static void reset_timer(void *ptr){
