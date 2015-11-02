@@ -52,6 +52,7 @@ static void on_message_received(struct broadcast_conn *c)
 			break;
 		}
 		case SYNC_REQ: {
+			//TODO: CHECK DESTINATION
 			static SyncRequestMessage req_msg;
 			packetbuf_copyto(&req_msg);
 			handle_sync_req(req_msg);
@@ -59,6 +60,7 @@ static void on_message_received(struct broadcast_conn *c)
 			break;
 		}
 		case SYNC_ACK: {
+			//TODO: CHECK DESTINATION
 			static SyncAckMessage ack_msg;
 			packetbuf_copyto(&ack_msg);
 			handle_sync_ack(ack_msg);
@@ -112,7 +114,7 @@ static void handle_sync_req(SyncRequestMessage req_msg) {
 	printf("Received sync request from %d\n", req_msg.sender_id);
 	clock_time_t t2 = sys_time;
 
-	SyncAckMessage sync_ack = {.type = SYNC_ACK, .sender_id = node_id, .destination_id = parent_node, .t1 = req_msg.t1, .t2 = t2};
+	SyncAckMessage sync_ack = {.type = SYNC_ACK, .sender_id = node_id, .destination_id = req_msg.sender_id, .t1 = req_msg.t1, .t2 = t2};
 	clock_time_t t3 = sys_time;
 	sync_ack.t3 = t3;
 
