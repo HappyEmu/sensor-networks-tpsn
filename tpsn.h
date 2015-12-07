@@ -50,5 +50,6 @@ static void handle_discovery(DiscoveryMessage);
 static void handle_sync_pulse();
 static void handle_sync_ack(SyncAckMessage);
 static void handle_sync_req(SyncRequestMessage);
+static void sync();
 
 #endif

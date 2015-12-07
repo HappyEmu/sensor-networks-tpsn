@@ -1,7 +1,9 @@
 #include <stdint.h>
 #include "tpsn.h"
 
-#define FLAT_HIERARCHY 1
+#define FLAT_HIERARCHY 0
+#define ROOT_NODE 1
+#define PERIOD (30*CLOCK_SECOND)
 
 static struct ctimer leds_off_timer_send;
 
@@ -16,7 +18,7 @@ static unsigned long sys_time = 0;
 static struct ctimer time;
 
 static uint16_t parent_node, level;
-static uint16_t last_broadcast_id = (uint16_t) (1 << 16);
+static uint16_t last_broadcast_id = (uint16_t)0;
 
 static AbstractMessage msgReceived;
 static SyncPulseMessage pulse_msg;
@@ -100,11 +102,11 @@ static void handle_discovery(DiscoveryMessage disc_message) {
                 break;
             }
             case 78: {
-                if (disc_message.sender_id != 68) return;
+                if (disc_message.sender_id != 68 && disc_message.sender_id != 79) return;
                 break;
             }
             case 69: {
-                if (disc_message.sender_id != 78) return;
+                if (disc_message.sender_id == 79) return;
                 break;
             }
             default: break;
@@ -132,8 +134,14 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 }
 
 static void handle_sync_pulse() {
+    if (pulse_msg.sender_id != parent_node) return;
+
     printf("SYNC_PULSE: %d: Received sync pulse from %d\n", last_broadcast_id, pulse_msg.sender_id);
 
+    sync();
+}
+
+static void sync() {
     clock_time_t t1 = sys_time;
     // printf("T1 is: %lu ticks\n", t1);
 
@@ -141,11 +149,22 @@ static void handle_sync_pulse() {
     packetbuf_copyfrom(&req_msg, sizeof(req_msg));
     broadcast_send(&bc);
     // printf("sending sync req to %d\n", req_msg.destination_id);
-
 }
 
 static void handle_sync_req(SyncRequestMessage req_msg) {
-    if (req_msg.destination_id != node_id) return;
+
+    if (req_msg.destination_id != node_id) {
+        if (req_msg.sender_id == parent_node) {
+            printf("Backing off...");
+
+            static struct ctimer ct;
+            clock_time_t backoff = (rand() % CLOCK_SECOND) + 1;
+            ctimer_set(&ct, backoff, sync, NULL);
+
+            return;
+        }
+        else return;
+    }
 
     printf("SYNC_REQUEST: %d: Received sync request from %d\n", last_broadcast_id, req_msg.sender_id);
     clock_time_t t2 = sys_time;
@@ -163,6 +182,8 @@ static void handle_sync_req(SyncRequestMessage req_msg) {
 }
 
 static void handle_sync_ack(SyncAckMessage ack_msg) {
+    if (ack_msg.destination_id != node_id) return;
+
     printf("SYNC_ACK: %d: Received sync ack from %d\n", last_broadcast_id, ack_msg.sender_id);
     clock_time_t t4 = sys_time;
     // printf("Times are: t1: %lu t2: %lu t3: %lu t4: %lu \n", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
@@ -203,8 +224,12 @@ PROCESS_THREAD(tpsn_process, ev, data) {
                 msgSend.level = 0;
                 msgSend.type = 0;
 
-                while (1) {
-                    PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
+                static struct etimer periodic_timer;
+                etimer_set(&periodic_timer, PERIOD);
+
+                while (node_id == ROOT_NODE) {
+                    etimer_set(&periodic_timer, PERIOD);
+                    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 
                     msgSend.broadcast_id = last_broadcast_id + (uint16_t) 1;
                     msgSend.level = 0;
@@ -219,7 +244,7 @@ PROCESS_THREAD(tpsn_process, ev, data) {
                     // printf("Sending initial discovery packet to all\n");
 
                     static struct etimer wait_timer;
-                    etimer_set(&wait_timer, CLOCK_SECOND / 2);
+                    etimer_set(&wait_timer, PERIOD);
                     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
 
                     SyncPulseMessage pulse_msg;
