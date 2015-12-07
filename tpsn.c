@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include "tpsn.h"
 
+#define FLAT_HIERARCHY 1
+
 static struct ctimer leds_off_timer_send;
 
 static void on_message_received(struct broadcast_conn *c);
@@ -34,13 +36,13 @@ static void on_message_received(struct broadcast_conn *c) {
     }
 
     int copied = packetbuf_copyto(&msgReceived);
-    printf("Copied from msgReceived = %d", copied);
+    // printf("Copied from msgReceived = %d", copied);
 
-    printf("Got new message with type %d\n", msgReceived.type);
+    // printf("Got new message with type %d\n", msgReceived.type);
 
-    printf("Decoded msg is \n");
+    // printf("Decoded msg is \n");
     for (i = 0; i < 20; i++) {
-        printf("Byte %d is %u\n", i, msgReceived.data[i]);
+        // printf("Byte %d is %u\n", i, msgReceived.data[i]);
     }
 
     switch (msgReceived.type) {
@@ -86,23 +88,43 @@ static void on_message_received(struct broadcast_conn *c) {
 }
 
 static void handle_discovery(DiscoveryMessage disc_message) {
-    printf("Broadcast message %d received from %d\n", disc_message.broadcast_id, disc_message.sender_id);
+    // printf("Broadcast message %d received from %d\n", disc_message.broadcast_id, disc_message.sender_id);
 
     if (last_broadcast_id != disc_message.broadcast_id) {
-        printf("Got new broadcast: %d\n", disc_message.broadcast_id);
+        // printf("Got new broadcast: %d\n", disc_message.broadcast_id);
 
+# if FLAT_HIERARCHY
+        switch (node_id) {
+            case 68: {
+                if (disc_message.sender_id != 79) return;
+                break;
+            }
+            case 78: {
+                if (disc_message.sender_id != 68) return;
+                break;
+            }
+            case 69: {
+                if (disc_message.sender_id != 78) return;
+                break;
+            }
+            default: break;
+        }
+# endif
         // Update state variables
         last_broadcast_id = disc_message.broadcast_id;
         parent_node = disc_message.sender_id;
         level = disc_message.level + (uint16_t) 1;
-        printf("Assigned: parent node: %d, level: %d\n", parent_node, level);
+
+        printf("===========================================================\n");
+        printf("======== NODE %d ========\n", node_id);
+        printf("DISCOVERY: %d: Assigned: parent node: %d, level: %d\n", disc_message.broadcast_id, parent_node, level);
 
         disc_message.type = DISCOVERY;
         disc_message.broadcast_id = last_broadcast_id;
         disc_message.level = level;
         disc_message.sender_id = node_id;
 
-        printf("Rebroadcasting to other nodes\n");
+        //printf("Rebroadcasting to other nodes\n");
         packetbuf_copyfrom(&disc_message, sizeof(disc_message));
 
         broadcast_send(&bc);
@@ -110,27 +132,22 @@ static void handle_discovery(DiscoveryMessage disc_message) {
 }
 
 static void handle_sync_pulse() {
-    if (pulse_msg.sender_id == 79) {
-        printf("========== Correct sender id =================");
-    }
-
-    uint32_t id = (uint32_t) ((0x0000FFFF & pulse_msg.sender_id) >> 0);
-    printf("Received sync pulse from %d\n", id);
+    printf("SYNC_PULSE: %d: Received sync pulse from %d\n", last_broadcast_id, pulse_msg.sender_id);
 
     clock_time_t t1 = sys_time;
-    printf("T1 is: %lu ticks\n", t1);
+    // printf("T1 is: %lu ticks\n", t1);
 
     SyncRequestMessage req_msg = {.type = SYNC_REQ, .sender_id = node_id, .destination_id = parent_node, .t1 = t1};
     packetbuf_copyfrom(&req_msg, sizeof(req_msg));
     broadcast_send(&bc);
-    printf("sending sync req to %d\n", req_msg.destination_id);
+    // printf("sending sync req to %d\n", req_msg.destination_id);
 
 }
 
 static void handle_sync_req(SyncRequestMessage req_msg) {
     if (req_msg.destination_id != node_id) return;
 
-    printf("Received sync request from %d\n", req_msg.sender_id);
+    printf("SYNC_REQUEST: %d: Received sync request from %d\n", last_broadcast_id, req_msg.sender_id);
     clock_time_t t2 = sys_time;
 
     SyncAckMessage sync_ack = {.type = SYNC_ACK, .sender_id = node_id, .destination_id = req_msg.sender_id, .t1 = req_msg.t1, .t2 = t2};
@@ -142,16 +159,16 @@ static void handle_sync_req(SyncRequestMessage req_msg) {
     broadcast_send(&bc);
 
 
-    printf("sending sync ack to %d\n", sync_ack.destination_id);
+    // printf("sending sync ack to %d\n", sync_ack.destination_id);
 }
 
 static void handle_sync_ack(SyncAckMessage ack_msg) {
-    printf("Received sync ack from %d\n", ack_msg.sender_id);
+    printf("SYNC_ACK: %d: Received sync ack from %d\n", last_broadcast_id, ack_msg.sender_id);
     clock_time_t t4 = sys_time;
-    printf("Times are: t1: %lu t2: %lu t3: %lu t4: %lu \n", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
+    // printf("Times are: t1: %lu t2: %lu t3: %lu t4: %lu \n", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
 
     int Delta = (int) (((ack_msg.t2 - ack_msg.t1) - (t4 - ack_msg.t3)) / 2);
-    printf("Delta: %d \n", Delta);
+    // printf("Delta: %d \n", Delta);
 
     printf("Time before: %lu \n", sys_time);
 
@@ -199,7 +216,7 @@ PROCESS_THREAD(tpsn_process, ev, data) {
 
                     broadcast_send(&bc);
 
-                    printf("Sending initial discovery packet to all\n");
+                    // printf("Sending initial discovery packet to all\n");
 
                     static struct etimer wait_timer;
                     etimer_set(&wait_timer, CLOCK_SECOND / 2);
@@ -210,7 +227,7 @@ PROCESS_THREAD(tpsn_process, ev, data) {
                     pulse_msg.sender_id = node_id;
                     pulse_msg.type = SYNC_PULSE;
 
-                    printf("Sending Sync Pulse message from %d\n", pulse_msg.sender_id);
+                    // printf("Sending Sync Pulse message from %d\n", pulse_msg.sender_id);
 
                     packetbuf_copyfrom(&pulse_msg, sizeof(pulse_msg));
                     broadcast_send(&bc);
