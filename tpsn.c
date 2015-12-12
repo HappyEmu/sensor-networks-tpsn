@@ -3,7 +3,7 @@
 
 #define FLAT_HIERARCHY 0
 #define ROOT_NODE 1
-#define PERIOD (30*CLOCK_SECOND)
+#define PERIOD (120*CLOCK_SECOND)
 
 static struct ctimer leds_off_timer_send;
 
@@ -189,7 +189,7 @@ static void handle_sync_ack(SyncAckMessage ack_msg) {
     // printf("Times are: t1: %lu t2: %lu t3: %lu t4: %lu \n", ack_msg.t1, ack_msg.t2, ack_msg.t3, t4);
 
     int Delta = (int) (((ack_msg.t2 - ack_msg.t1) - (t4 - ack_msg.t3)) / 2);
-    // printf("Delta: %d \n", Delta);
+    printf("Delta: %d \n", Delta);
 
     printf("Time before: %lu \n", sys_time);
 
@@ -241,7 +241,7 @@ PROCESS_THREAD(tpsn_process, ev, data) {
 
                     broadcast_send(&bc);
 
-                    // printf("Sending initial discovery packet to all\n");
+                    printf("DISCOVERY: %d: Sending initial discovery packet to all\n", msgSend.broadcast_id);
 
                     static struct etimer wait_timer;
                     etimer_set(&wait_timer, PERIOD);
@@ -252,7 +252,7 @@ PROCESS_THREAD(tpsn_process, ev, data) {
                     pulse_msg.sender_id = node_id;
                     pulse_msg.type = SYNC_PULSE;
 
-                    // printf("Sending Sync Pulse message from %d\n", pulse_msg.sender_id);
+                    printf("SYNC_PULSE: %d, Sending Sync Pulse message from %d\n", last_broadcast_id, pulse_msg.sender_id);
 
                     packetbuf_copyfrom(&pulse_msg, sizeof(pulse_msg));
                     broadcast_send(&bc);
