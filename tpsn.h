@@ -26,7 +26,6 @@ typedef struct {
 typedef struct {
     MessageType type;
     uint16_t sender_id;
-    uint16_t bullshit;
 } SyncPulseMessage;
 
 typedef struct {

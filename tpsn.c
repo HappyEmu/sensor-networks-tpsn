@@ -69,7 +69,6 @@ static void on_message_received(struct broadcast_conn *c) {
             break;
         }
         case SYNC_REQ: {
-            //TODO: CHECK DESTINATION
             static SyncRequestMessage req_msg;
             packetbuf_copyto(&req_msg);
             handle_sync_req(req_msg);
@@ -77,7 +76,6 @@ static void on_message_received(struct broadcast_conn *c) {
             break;
         }
         case SYNC_ACK: {
-            //TODO: CHECK DESTINATION
             static SyncAckMessage ack_msg;
             packetbuf_copyto(&ack_msg);
             handle_sync_ack(ack_msg);
@@ -248,7 +246,6 @@ PROCESS_THREAD(tpsn_process, ev, data) {
                     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
 
                     SyncPulseMessage pulse_msg;
-                    pulse_msg.bullshit = 0;
                     pulse_msg.sender_id = node_id;
                     pulse_msg.type = SYNC_PULSE;
 
